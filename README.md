@@ -132,13 +132,14 @@ corrupta: se escribe en un temporal y se renombra.
 | `opencode` | OpenCode | `anomalyco/opencode` |
 | `gemini` | Gemini CLI | `google-gemini/gemini-cli` |
 | `copilot` | Copilot CLI | `github/copilot-cli` |
-| `grok` | Grok CLI (superagent) | `superagent-ai/grok-cli` |
 
-> `grok` **no** es el Grok CLI oficial de xAI. Son dos herramientas distintas que
-> instalan un ejecutable llamado `grok`. La de xAI no publica releases en GitHub:
-> su changelog vive en un endpoint autenticado y en `~/.grok/CHANGELOG.md`. Por
-> eso esta fila no detecta versión instalada — compararla con la de xAI diría
-> "actualiza" enfrentando dos productos que no tienen nada que ver.
+> **Por qué no está Grok.** El CLI oficial de xAI no publica su changelog en
+> ningún sitio accesible: el endpoint devuelve 403, el bucket de artefactos no se
+> puede listar, y `~/.grok/CHANGELOG.md` solo trae las notas de la versión que ya
+> tienes instalada — con lo cual `diff` y `search` no tendrían nada que leer.
+> `superagent-ai/grok-cli` sí publica releases, pero es otro producto que instala
+> un ejecutable con el mismo nombre, y tenerlo aquí solo servía para confundirlos.
+> Para el de xAI, `grok update --check --json` ya responde lo que necesitas.
 
 Todas se leen por la API de releases de GitHub. No hay lectores especiales por
 herramienta: añadir una es **una fila** en la tabla `sources` de `source.go`.

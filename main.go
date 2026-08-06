@@ -222,8 +222,6 @@ func cmdStatus(o opts) error {
 		st.Latest, st.Date = latest.Version, latest.Date
 		st.Cadence = cadence(filterReleases(r.Releases, o.pre))
 		switch {
-		case r.Source.Bin == "":
-			st.State = "no comprobable"
 		case st.Installed == "":
 			st.State = "sin instalar"
 		case cmpVersion(st.Installed, st.Latest) >= 0:

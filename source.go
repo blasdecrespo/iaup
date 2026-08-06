@@ -17,9 +17,6 @@ import (
 //
 // Repo debe ser el repositorio canónico. Un repo renombrado devuelve 301 y
 // gasta una petición de más en cada llamada.
-//
-// Bin vacío significa que la versión instalada no es comprobable, y eso se
-// dice: comparar contra el binario equivocado es peor que no comparar.
 type Source struct {
 	ID   string // nombre en la línea de comandos
 	Name string // nombre para humanos
@@ -33,14 +30,15 @@ var sources = []Source{
 	{"opencode", "OpenCode", "anomalyco/opencode", "opencode"},
 	{"gemini", "Gemini CLI", "google-gemini/gemini-cli", "gemini"},
 	{"copilot", "Copilot CLI", "github/copilot-cli", "copilot"},
-	// Ojo: este NO es el Grok CLI oficial de xAI. Son dos herramientas
-	// distintas que instalan un ejecutable llamado `grok`. La de xAI no
-	// publica releases en GitHub —su changelog vive en un endpoint
-	// autenticado y en un fichero local—, así que aquí no se puede seguir.
-	// Sin Bin no se compara nada: mostrar la versión de xAI junto a la
-	// última de superagent-ai diría "actualiza" comparando dos productos.
-	{"grok", "Grok CLI (superagent)", "superagent-ai/grok-cli", ""},
 }
+
+// Grok se probó y se descartó. El CLI oficial de xAI no publica su changelog
+// en ningún sitio accesible: el endpoint pide credencial (403), el bucket no
+// se puede listar (401) y el fichero local ~/.grok/CHANGELOG.md solo trae la
+// versión que ya tienes instalada, así que `diff` y `search` no tendrían nada
+// que leer. superagent-ai/grok-cli sí publica releases, pero es otro producto
+// que instala un ejecutable con el mismo nombre, y tenerlo aquí solo servía
+// para confundirlo con el de xAI.
 
 func (s Source) WebURL() string { return "https://github.com/" + s.Repo + "/releases" }
 
