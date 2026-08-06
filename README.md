@@ -50,6 +50,7 @@ iaup latest --since 72h   todo lo publicado en tres días
 | `--ttl 1h` | validez de la caché |
 | `--no-cache` | forzar descarga |
 | `--offline` | solo caché, sin red |
+| `--gh-token` | usar la credencial de `gh auth token` |
 
 Las banderas van en cualquier posición: `iaup --json claude` y `iaup claude --json`
 hacen lo mismo.
@@ -149,16 +150,50 @@ herramienta: añadir una es **una fila** en la tabla `sources` de `source.go`.
 Usa el repositorio canónico: uno renombrado devuelve 301 y gasta una petición de
 más en cada llamada.
 
+## Credenciales
+
+**Por defecto va anónimo.** No hay ningún token embebido, y no se le pregunta a
+nadie por el suyo.
+
+Anónimo son 60 peticiones/hora contra la API de GitHub. Sobra: las
+revalidaciones que devuelven 304 **no cuentan** contra ese límite, así que en
+régimen normal el gasto es casi cero. Con credencial son 5000.
+
+Se usa la primera que exista:
+
+1. `IAUP_TOKEN`, `GH_TOKEN` o `GITHUB_TOKEN` — poner una variable de entorno es
+   una decisión que has tomado tú.
+2. `gh auth token`, **solo si pasas `--gh-token`**.
+
+A `gh` no se le pregunta por su cuenta a propósito: usaría en silencio la sesión
+que tengas abierta, que puede ser la del trabajo y no la que quieres para esto.
+Explícito por defecto.
+
+La credencial nunca se escribe en disco ni se imprime. Solo viaja en la cabecera
+`Authorization` hacia `api.github.com`, por HTTPS. La caché guarda exactamente
+cuatro claves —`depth`, `etag`, `fetched`, `releases`— y nada más.
+
+Resolverla cuesta ~43 ms (lanzar `gh`), así que se hace de forma perezosa: solo
+si de verdad se sale a la red. Un acierto de caché no paga nada.
+
 ## Entorno
 
 | Variable | Efecto |
 |---|---|
-| `GH_TOKEN` / `GITHUB_TOKEN` | sube el límite de GitHub de 60 a 5000 peticiones/hora |
+| `IAUP_TOKEN` / `GH_TOKEN` / `GITHUB_TOKEN` | credencial para la API de GitHub |
 | `IAUP_CACHE` | directorio de caché (por defecto `~/.cache/iaup`) |
 | `NO_COLOR` | desactiva el color |
 
-Si no hay ninguna de las dos primeras, se intenta `gh auth token`, y solo en el
-momento de salir a la red. El token nunca se escribe en disco.
+## Cuando sirve datos viejos, lo dice
+
+Si la red falla, la credencial ha caducado o se agotó el límite, se sirve la
+caché en vez de fallar — pero avisa por `stderr` del motivo y de la antigüedad:
+
+```
+Claude Code: GitHub devolvió 401 Unauthorized; sirviendo caché de hace 4m
+```
+
+Va por `stderr` para no ensuciar la salida ni romper una tubería con `--json`.
 
 ## Desarrollo
 

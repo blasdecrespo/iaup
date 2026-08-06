@@ -8,14 +8,30 @@ import (
 	"unsafe"
 )
 
-// termWidth devuelve el ancho del terminal en columnas, o 0 si la salida no es
-// un terminal. Es una llamada al sistema, no una dependencia.
-func termWidth() int {
+// winsize pregunta al sistema por el tamaño de la ventana. Que la llamada
+// funcione es la definición de "esto es un terminal": un fichero, una tubería
+// o /dev/null la rechazan.
+//
+// Es una llamada al sistema, no una dependencia.
+func winsize() (cols int, ok bool) {
 	var ws struct{ row, col, xpix, ypix uint16 }
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL,
 		os.Stdout.Fd(), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&ws)))
 	if err != 0 {
+		return 0, false
+	}
+	return int(ws.col), true
+}
+
+func termWidth() int {
+	cols, ok := winsize()
+	if !ok {
 		return 0
 	}
-	return int(ws.col)
+	return cols
+}
+
+func isTerminal() bool {
+	_, ok := winsize()
+	return ok
 }

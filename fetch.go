@@ -74,6 +74,11 @@ type fetchOpts struct {
 	Depth   int
 	NoCache bool
 	Offline bool
+
+	// Token resuelve la credencial, o es nil para ir anónimo. Es una función
+	// y no una cadena a propósito: así solo se paga cuando de verdad se sale
+	// a la red, y un acierto de caché no lanza ningún proceso.
+	Token func() string
 }
 
 // Result acompaña cada fuente con su error propio: que Gemini esté caído no
@@ -101,31 +106,37 @@ func cacheDir() string {
 	return filepath.Join(home, ".cache", "iaup")
 }
 
-// token busca credenciales sin guardar nada en disco. Sin token el límite de
-// GitHub es 60 peticiones/hora; con token, 5000. Solo se consulta cuando de
-// verdad vamos a salir a la red, para que un acierto de caché no pague el
-// coste de lanzar un proceso.
-var tokenOnce struct {
-	sync.Once
-	val string
-}
+var tokenEnv = []string{"IAUP_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"}
 
-func token() string {
-	tokenOnce.Do(func() {
-		for _, k := range []string{"IAUP_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"} {
-			if v := strings.TrimSpace(os.Getenv(k)); v != "" {
-				tokenOnce.val = v
-				return
-			}
+// lookupToken busca una credencial para la API de GitHub. Nunca la escribe en
+// disco ni la imprime; solo viaja en la cabecera Authorization hacia
+// api.github.com.
+//
+// Una variable de entorno es una decisión que has tomado tú. Preguntarle a
+// `gh` por su token no lo es: sería usar en silencio la sesión que tengas
+// abierta, que puede ser la del trabajo. Por eso hay que pedirlo con
+// --gh-token.
+//
+// Ir sin credencial no rompe nada: baja el límite de 5000 a 60 peticiones por
+// hora, y como las revalidaciones 304 no cuentan, sobra para estas fuentes.
+func lookupToken(useGH bool) string {
+	for _, k := range tokenEnv {
+		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+			return v
 		}
-		if path, err := exec.LookPath("gh"); err == nil {
-			out, err := exec.Command(path, "auth", "token").Output()
-			if err == nil {
-				tokenOnce.val = strings.TrimSpace(string(out))
-			}
-		}
-	})
-	return tokenOnce.val
+	}
+	if !useGH {
+		return ""
+	}
+	path, err := exec.LookPath("gh")
+	if err != nil {
+		return ""
+	}
+	out, err := exec.Command(path, "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // fetchOne devuelve los releases de una fuente.
@@ -161,8 +172,10 @@ func fetchOne(s Source, o fetchOpts) ([]Release, bool, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Set("User-Agent", "iaup/"+buildVersion)
-	if t := token(); t != "" {
-		req.Header.Set("Authorization", "Bearer "+t)
+	if o.Token != nil {
+		if t := o.Token(); t != "" {
+			req.Header.Set("Authorization", "Bearer "+t)
+		}
 	}
 	// El ETag identifica una respuesta concreta, y per_page forma parte de
 	// ella. Reenviarlo con otra profundidad solo garantiza un 200.
@@ -172,8 +185,15 @@ func fetchOne(s Source, o fetchOpts) ([]Release, bool, error) {
 
 	// stale sirve la caché caducada cuando la alternativa es no dar nada.
 	// Menos profunda de lo pedido también vale: recortada es mejor que vacía.
+	//
+	// Pero lo dice. Servir datos viejos en silencio esconde el motivo —una
+	// credencial caducada, el límite agotado, la red caída— y quien mira la
+	// tabla creería estar viendo lo último. Va por stderr para no ensuciar
+	// la salida ni romper una tubería con --json.
 	stale := func(err error) ([]Release, bool, error) {
 		if cached != nil {
+			fmt.Fprintf(os.Stderr, "%s%s: %v; sirviendo caché de hace %s%s\n",
+				cDim, s.Name, err, relTime(time.Since(cached.Fetched).Seconds()), cReset)
 			return stamp(s, cached.Releases), true, nil
 		}
 		return nil, false, err

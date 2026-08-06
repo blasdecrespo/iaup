@@ -19,8 +19,7 @@ var (
 func initColor(force, never bool) {
 	on := force
 	if !never && !force {
-		fi, err := os.Stdout.Stat()
-		on = err == nil && fi.Mode()&os.ModeCharDevice != 0 && os.Getenv("NO_COLOR") == ""
+		on = isTerminal() && os.Getenv("NO_COLOR") == ""
 	}
 	if never {
 		on = false

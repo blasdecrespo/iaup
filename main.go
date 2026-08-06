@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,9 +26,13 @@ type opts struct {
 	offline bool
 	color   bool
 	noColor bool
+	ghToken bool
 	ttl     time.Duration
 	since   time.Duration
 	limit   int
+
+	// resolveToken se evalúa una sola vez, y solo si alguien sale a la red.
+	resolveToken func() string
 }
 
 func main() {
@@ -37,6 +42,7 @@ func main() {
 		die(err)
 	}
 	initColor(o.color, o.noColor)
+	o.resolveToken = sync.OnceValue(func() string { return lookupToken(o.ghToken) })
 
 	cmd := "status"
 	if len(args) > 0 {
@@ -83,7 +89,10 @@ func die(err error) {
 }
 
 func (o opts) fetchAt(depth int) fetchOpts {
-	return fetchOpts{TTL: o.ttl, Depth: depth, NoCache: o.noCache, Offline: o.offline}
+	return fetchOpts{
+		TTL: o.ttl, Depth: depth, NoCache: o.noCache,
+		Offline: o.offline, Token: o.resolveToken,
+	}
 }
 
 func (o opts) fetch() fetchOpts { return o.fetchAt(depthShallow) }
@@ -623,6 +632,7 @@ func parseFlags(argv []string, o *opts) ([]string, error) {
 		"pre": &o.pre, "raw": &o.raw,
 		"no-cache": &o.noCache, "offline": &o.offline,
 		"color": &o.color, "no-color": &o.noColor,
+		"gh-token": &o.ghToken,
 	}
 	var rest []string
 	for i := 0; i < len(argv); i++ {
@@ -711,6 +721,7 @@ BANDERAS
       --ttl 1h        validez de la caché
       --no-cache      forzar descarga
       --offline       solo caché, sin red
+      --gh-token      usar la credencial de 'gh auth token'
       --color / --no-color
 
 EJEMPLOS
@@ -722,8 +733,18 @@ EJEMPLOS
   iaup search sandbox         dónde y cuándo apareció "sandbox"
   iaup latest --since 72h     todo lo publicado en 3 días
 
+CREDENCIALES
+  Por defecto va anónimo: 60 peticiones/hora, que sobran porque las
+  revalidaciones 304 no cuentan contra el límite. Con credencial son 5000.
+
+  Se usa la primera que exista, y nunca se escribe en disco:
+    1. IAUP_TOKEN, GH_TOKEN o GITHUB_TOKEN
+    2. 'gh auth token', solo si pasas --gh-token
+
+  A gh no se le pregunta por su cuenta a propósito: usaría en silencio la
+  sesión que tengas abierta, que puede no ser la que quieres para esto.
+
 ENTORNO
-  GH_TOKEN / GITHUB_TOKEN   sube el límite de GitHub de 60 a 5000 peticiones/hora
   IAUP_CACHE                directorio de caché (por defecto ~/.cache/iaup)
   NO_COLOR                  desactiva el color
 `, buildVersion, sourceIDs())
