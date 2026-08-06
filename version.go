@@ -82,6 +82,31 @@ func cmpVersion(a, b string) int {
 	return strings.Compare(apre, bpre)
 }
 
+// Marcas que delatan una precompilación en el propio número de versión.
+// GitHub trae una bandera `prerelease`, pero la rellena quien publica y a
+// veces no la rellena: grok-cli etiqueta sus `-rc` como versiones estables.
+// La etiqueta no miente aunque la bandera sí.
+var preSuffixes = []string{
+	"rc", "alpha", "beta", "preview", "nightly",
+	"canary", "dev", "next", "snapshot", "pre", "test",
+}
+
+// looksPrerelease decide por el sufijo. Un sufijo numérico no cuenta:
+// "1.0.78-5" es cómo Copilot numera sus publicaciones reales.
+func looksPrerelease(version string) bool {
+	_, suffix := splitVersion(version)
+	if suffix == "" {
+		return false
+	}
+	low := strings.ToLower(suffix)
+	for _, p := range preSuffixes {
+		if strings.HasPrefix(low, p) {
+			return true
+		}
+	}
+	return false
+}
+
 func splitVersion(v string) ([]int, string) {
 	pre := ""
 	if i := strings.IndexByte(v, '-'); i >= 0 {

@@ -216,10 +216,13 @@ func fetchOne(s Source, o fetchOpts) ([]Release, bool, error) {
 	}
 }
 
-// stamp rellena los campos de procedencia que no se guardan en disco.
+// stamp rellena los campos de procedencia que no se guardan en disco y aplica
+// la regla de precompilación. Va aquí, en la lectura, para que valga por igual
+// sobre una respuesta recién bajada y sobre una caché escrita hace semanas.
 func stamp(s Source, rel []Release) []Release {
 	for i := range rel {
 		rel[i].SourceID, rel[i].Source = s.ID, s.Name
+		rel[i].Pre = rel[i].Pre || looksPrerelease(rel[i].Version)
 	}
 	return rel
 }

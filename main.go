@@ -213,6 +213,8 @@ func cmdStatus(o opts) error {
 		st.Latest, st.Date = latest.Version, latest.Date
 		st.Cadence = cadence(filterReleases(r.Releases, o.pre))
 		switch {
+		case r.Source.Bin == "":
+			st.State = "no comprobable"
 		case st.Installed == "":
 			st.State = "sin instalar"
 		case cmpVersion(st.Installed, st.Latest) >= 0:
@@ -528,7 +530,32 @@ func cmdSearch(o opts, term string) error {
 		fmt.Fprintf(out, "\n%s%d coincidencias más; usa -n %d para verlas.%s\n",
 			cDim, total-len(hits), total, cReset)
 	}
+	fmt.Fprintf(out, "\n%sCobertura: %s%s\n", cDim, coverage(res, o.pre), cReset)
 	return nil
+}
+
+// coverage dice cuánta historia ha mirado de verdad en cada fuente.
+//
+// La ventana se pide en releases, no en días, y no todas las herramientas
+// publican al mismo ritmo ni con la misma proporción de precompilaciones:
+// Codex saca nueve alphas por cada versión estable, así que los mismos 60
+// releases son 70 días de Claude Code y 22 de Codex. Buscar sobre ventanas
+// tan desiguales y no decirlo es mentir por omisión: parecería que Codex
+// apenas corrige nada.
+func coverage(res []Result, includePre bool) string {
+	var parts []string
+	for _, r := range res {
+		if r.Err != nil {
+			continue
+		}
+		rel := filterReleases(r.Releases, includePre)
+		if len(rel) == 0 {
+			continue
+		}
+		span := relTime(rel[0].Date.Sub(rel[len(rel)-1].Date).Seconds())
+		parts = append(parts, fmt.Sprintf("%s %d (%s)", r.Source.ID, len(rel), span))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func highlight(s, term string) string {

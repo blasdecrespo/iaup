@@ -61,7 +61,23 @@ nuevo en el mundo", es "qué me llevo si actualizo". Detecta tu versión instala
 la compara con la última y te da solo el hueco.
 
 **`iaup search`** — "¿cuándo añadió Claude Code los hooks?" se responde una vez,
-sobre las cinco fuentes a la vez, en lugar de abrir cinco changelogs.
+sobre todas las fuentes a la vez, en lugar de abrir seis changelogs. Solo mira
+versiones estables; con `--pre` entran también las precompilaciones.
+
+Cada búsqueda termina declarando cuánta historia ha mirado de verdad:
+
+```
+Cobertura: claude 60 (2mo) · codex 6 (22d) · opencode 56 (2mo) · gemini 12 (2mo) · copilot 19 (59d)
+```
+
+La ventana se pide en releases, no en días, y no todas las herramientas publican
+igual: Codex saca nueve alphas por cada versión estable, así que los mismos 60
+releases son dos meses de Claude Code y 22 días de Codex. Sin esa línea parecería
+que Codex apenas corrige nada. Es un límite real, y se dice en vez de disimularlo.
+
+Una precompilación no siempre viene marcada como tal: `superagent-ai/grok-cli`
+publica sus `-rc` con `prerelease=false`. La bandera la rellena quien publica; el
+sufijo de la etiqueta no miente. Se usan los dos.
 
 **Filtro de ruido** — las notas autogeneradas de GitHub mezclan cambios reales con
 tareas de mantenimiento. En Gemini CLI, un release de 16 líneas se queda en las 10
@@ -115,6 +131,13 @@ corrupta: se escribe en un temporal y se renombra.
 | `opencode` | OpenCode | `anomalyco/opencode` |
 | `gemini` | Gemini CLI | `google-gemini/gemini-cli` |
 | `copilot` | Copilot CLI | `github/copilot-cli` |
+| `grok` | Grok CLI (superagent) | `superagent-ai/grok-cli` |
+
+> `grok` **no** es el Grok CLI oficial de xAI. Son dos herramientas distintas que
+> instalan un ejecutable llamado `grok`. La de xAI no publica releases en GitHub:
+> su changelog vive en un endpoint autenticado y en `~/.grok/CHANGELOG.md`. Por
+> eso esta fila no detecta versión instalada — compararla con la de xAI diría
+> "actualiza" enfrentando dos productos que no tienen nada que ver.
 
 Todas se leen por la API de releases de GitHub. No hay lectores especiales por
 herramienta: añadir una es **una fila** en la tabla `sources` de `source.go`.

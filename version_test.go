@@ -61,6 +61,28 @@ func sign(n int) int {
 	return 0
 }
 
+func TestLooksPrerelease(t *testing.T) {
+	pre := []string{
+		"1.1.5-rc7", // grok-cli las publica con prerelease=false
+		"0.147.0-alpha.13", "0.55.0-preview.1", "0.54.0-nightly.20260722",
+		"2.0.0-beta", "1.0.0-dev", "3.1.0-canary.2",
+	}
+	for _, v := range pre {
+		if !looksPrerelease(v) {
+			t.Errorf("%q debería contar como precompilación", v)
+		}
+	}
+	estables := []string{
+		"1.0.78-5", // Copilot numera así sus publicaciones reales
+		"2.1.223", "0.146.1", "1.18.14", "",
+	}
+	for _, v := range estables {
+		if looksPrerelease(v) {
+			t.Errorf("%q es estable, no precompilación", v)
+		}
+	}
+}
+
 func TestRelTime(t *testing.T) {
 	cases := []struct {
 		sec  float64
